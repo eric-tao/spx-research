@@ -1,0 +1,3 @@
+trade_id,timestamp,underlying_price,expiry_date,short_put_strike,long_put_strike,short_call_strike,long_call_strike,short_put_bid,short_put_ask,long_put_bid,long_put_ask,short_call_bid,short_call_ask,long_call_bid,long_call_ask,actual_fill_credit,note
+sample_2026_03_25_1200,2026-03-25 12:00:00,518.25,2026-03-25,515,510,521,526,1.95,2.05,0.55,0.65,1.85,1.95,0.45,0.55,,first snapshot from TradingView
+sample_2026_03_25_1200,2026-03-25 12:15:00,519.10,2026-03-25,515,510,521,526,1.70,1.80,0.48,0.58,2.15,2.25,0.60,0.70,,second snapshot after QQQ move
