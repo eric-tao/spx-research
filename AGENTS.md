@@ -7,11 +7,11 @@ This repo is a research sandbox for same-day SPX / QQQ options planning.
 There are two main tracks:
 
 - `spx_0dte_planner/`
-  Daily-feature SPX modeling focused on excursion-from-open, touch probabilities, and conditional close behavior.
+  Daily-feature SPX modeling focused on excursion-from-open, touch probabilities, and conditional-close behavior.
 - `intraday_condor_research/`
   Intraday QQQ/NDX condor-proxy research using 5-minute candles, expected value tables, and regime analysis.
 
-The repo started from a daily close-direction idea, but the more useful signal now comes from:
+The stronger signal in this repo is not raw close direction. It is:
 
 - `P(high_from_open >= +x%)`
 - `P(low_from_open <= -x%)`
@@ -24,7 +24,7 @@ The repo started from a daily close-direction idea, but the more useful signal n
 
 Entry point:
 
-- [`spx_0dte_planner/webapp.py`](/Users/erictao/trading_2/spx_0dte_planner/webapp.py)
+- [`spx_0dte_planner/webapp.py`](spx_0dte_planner/webapp.py)
 
 What it does:
 
@@ -37,7 +37,7 @@ What it does:
 
 Entry point:
 
-- [`spx_0dte_planner/cli.py`](/Users/erictao/trading_2/spx_0dte_planner/cli.py)
+- [`spx_0dte_planner/cli.py`](spx_0dte_planner/cli.py)
 
 Important mode:
 
@@ -54,15 +54,15 @@ This prints:
 
 Entry point:
 
-- [`intraday_condor_research/cli.py`](/Users/erictao/trading_2/intraday_condor_research/cli.py)
+- [`intraday_condor_research/cli.py`](intraday_condor_research/cli.py)
 
 This is still a structural proxy, not a real options backtest.
 
 ## Important Data Assumptions
 
-- SPX data is daily OHLC in [`data/spx_daily.csv`](/Users/erictao/trading_2/data/spx_daily.csv)
-- VIX data is daily OHLC in [`data/vix_daily.csv`](/Users/erictao/trading_2/data/vix_daily.csv)
-- events live in [`data/events.csv`](/Users/erictao/trading_2/data/events.csv)
+- SPX data is daily OHLC in [`data/spx_daily.csv`](data/spx_daily.csv)
+- VIX data is daily OHLC in [`data/vix_daily.csv`](data/vix_daily.csv)
+- events live in [`data/events.csv`](data/events.csv)
 - `VIX open` means the daily `OPEN` field from the VIX history source, aligned by trade date
 
 The daily SPX model is intended to be open-time sane:
@@ -73,17 +73,17 @@ The daily SPX model is intended to be open-time sane:
 
 ## Key Files
 
-- [`spx_0dte_planner/features.py`](/Users/erictao/trading_2/spx_0dte_planner/features.py)
+- [`spx_0dte_planner/features.py`](spx_0dte_planner/features.py)
   Daily features and targets.
-- [`spx_0dte_planner/model.py`](/Users/erictao/trading_2/spx_0dte_planner/model.py)
+- [`spx_0dte_planner/model.py`](spx_0dte_planner/model.py)
   Training, backtests, excursion probabilities, conditional-close summaries.
-- [`spx_0dte_planner/live.py`](/Users/erictao/trading_2/spx_0dte_planner/live.py)
+- [`spx_0dte_planner/live.py`](spx_0dte_planner/live.py)
   Live inference, regime classification, touch/continuation lookups.
-- [`spx_0dte_planner/webapp.py`](/Users/erictao/trading_2/spx_0dte_planner/webapp.py)
+- [`spx_0dte_planner/webapp.py`](spx_0dte_planner/webapp.py)
   Local browser UI.
-- [`intraday_condor_research/stats.py`](/Users/erictao/trading_2/intraday_condor_research/stats.py)
+- [`intraday_condor_research/stats.py`](intraday_condor_research/stats.py)
   Intraday probability / EV tables.
-- [`scripts/download_market_data.py`](/Users/erictao/trading_2/scripts/download_market_data.py)
+- [`scripts/download_market_data.py`](scripts/download_market_data.py)
   Daily data refresh; includes SPX fallback to Yahoo if Stooq is empty.
 
 ## Commands That Work
@@ -91,14 +91,13 @@ The daily SPX model is intended to be open-time sane:
 Run tests:
 
 ```bash
-MPLCONFIGDIR=/Users/erictao/trading_2/.mplconfig /opt/homebrew/bin/python3.11 -m pytest -q
+MPLCONFIGDIR=.mplconfig python3.11 -m pytest -q
 ```
 
 Run daily SPX webapp:
 
 ```bash
-cd /Users/erictao/trading_2
-/opt/homebrew/bin/python3.11 -m spx_0dte_planner.webapp \
+python3.11 -m spx_0dte_planner.webapp \
   --spx data/spx_daily.csv \
   --vix data/vix_daily.csv \
   --events data/events.csv \
@@ -109,7 +108,7 @@ cd /Users/erictao/trading_2
 Run daily range CLI:
 
 ```bash
-/opt/homebrew/bin/python3.11 -m spx_0dte_planner.cli \
+python3.11 -m spx_0dte_planner.cli \
   --underlying data/spx_daily.csv \
   --underlying-label SPX \
   --vix data/vix_daily.csv \
@@ -122,7 +121,7 @@ Run daily range CLI:
 Refresh daily history:
 
 ```bash
-/opt/homebrew/bin/python3.11 scripts/download_market_data.py \
+python3.11 scripts/download_market_data.py \
   --start 2021-01-01 \
   --end 2026-12-31
 ```
@@ -153,11 +152,11 @@ Refresh daily history:
 
 If you change:
 
-- daily modeling logic: run [`tests/test_pipeline.py`](/Users/erictao/trading_2/tests/test_pipeline.py)
-- webapp logic: run [`tests/test_webapp.py`](/Users/erictao/trading_2/tests/test_webapp.py)
-- intraday research: run [`tests/test_intraday_pipeline.py`](/Users/erictao/trading_2/tests/test_intraday_pipeline.py)
+- daily modeling logic: run [`tests/test_pipeline.py`](tests/test_pipeline.py)
+- webapp logic: run [`tests/test_webapp.py`](tests/test_webapp.py)
+- intraday research: run [`tests/test_intraday_pipeline.py`](tests/test_intraday_pipeline.py)
 
-In practice, just run the full test suite unless the user asks otherwise.
+In practice, run the full test suite unless the user asks otherwise.
 
 ## Known Limits
 

@@ -77,6 +77,14 @@ def _resolve_path(path: str) -> str:
     return str(project_resolved)
 
 
+def _display_path(path: str) -> str:
+    try:
+        resolved = Path(path).resolve()
+        return str(resolved.relative_to(PROJECT_ROOT))
+    except Exception:
+        return path
+
+
 def _maybe_refresh_daily_data(spx_path: str, vix_path: str, now: datetime | None = None) -> str | None:
     spx_path = _resolve_path(spx_path)
     vix_path = _resolve_path(vix_path)
@@ -128,8 +136,8 @@ def create_app_state(
     if len(spx_bars) < 50 or len(vix_bars) < 50:
         raise ValueError(
             "Local SPX/VIX history is too short to train the app. "
-            f"spx_path={spx_path} rows={len(spx_bars)}, "
-            f"vix_path={vix_path} rows={len(vix_bars)}. "
+            f"spx_path={_display_path(spx_path)} rows={len(spx_bars)}, "
+            f"vix_path={_display_path(vix_path)} rows={len(vix_bars)}. "
             "Check the CSVs or rerun scripts/download_market_data.py."
         )
     event_calendar = load_event_calendar(events_path)
@@ -142,7 +150,7 @@ def create_app_state(
     if len(rows) < 50:
         raise ValueError(
             "Aligned SPX/VIX feature history is empty or too short. "
-            f"spx_path={spx_path}, vix_path={vix_path}, rows={len(rows)}. "
+            f"spx_path={_display_path(spx_path)}, vix_path={_display_path(vix_path)}, rows={len(rows)}. "
             "This usually means one of the CSVs is stale or malformed."
         )
     range_fit = fit_train_backtest_range_model(

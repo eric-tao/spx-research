@@ -1,40 +1,38 @@
 # SPX / QQQ Options Research Sandbox
 
-This repo grew out of a practical question: can we use daily market context to say something useful about same-day SPX behavior, and then turn that into better planning for structures like verticals, condors, or simple directional trades?
+This repo is a research sandbox for same-day options planning.
 
-The short answer is yes, but not in the original form.
+It started from a daily SPX close-direction idea, but the stronger signal turned out to be:
 
-The project started as a daily close-direction model for SPX 0DTE planning. That turned out to be weaker than we wanted. The more useful signal came from reframing the problem as:
+- how far SPX is likely to move from the open
+- which upside or downside levels are likely to be touched
+- once a level is touched, how the day tends to finish
+- how those answers change with VIX, overnight gap, and prior-day range
 
-- how far is SPX likely to move away from the open?
-- which upside or downside levels are likely to be touched?
-- once a level is touched, how does the day usually finish?
-- how do those answers change with VIX, overnight gap, and prior-day range?
-
-That led to two research tracks in this repo:
+That led to two main tracks:
 
 - a daily SPX excursion model and local webapp
 - an intraday QQQ/NDX condor-proxy research pipeline
 
-## What This Repo Is Good For
+## What This Repo Helps With
 
-At a high level, this repo helps answer:
+At a high level, the repo helps answer:
 
 - `P(high_from_open >= +x%)`
 - `P(low_from_open <= -x%)`
 - given a touch, where does the close tend to finish?
-- what do those probabilities look like under specific regimes like `high_vix`, `large_gap`, or `low_prev_range`?
+- what do those probabilities look like under regimes like `high_vix`, `large_gap`, or `low_prev_range`?
 - for intraday condor-style planning, when does the remaining session tend to stay within a chosen width?
 
-It is useful as a research and planning environment.
+It is useful for research and planning.
 
 It is not yet a production options backtester with real chain history, fill modeling, or execution logic.
 
 ## Main Pieces
 
-### 1. Daily SPX excursion model
+### Daily SPX excursion model
 
-Package: [`spx_0dte_planner`](/Users/erictao/trading_2/spx_0dte_planner)
+Package: [`spx_0dte_planner`](spx_0dte_planner)
 
 This is the main daily-feature modeling layer.
 
@@ -46,7 +44,7 @@ It uses:
 - the current day's VIX daily session open
 - event flags from a calendar
 
-The model now focuses on excursion-from-open targets:
+The model focuses on excursion-from-open targets:
 
 - `high_from_open = (high - open) / open`
 - `low_from_open = (low - open) / open`
@@ -58,11 +56,11 @@ Instead of only predicting the close, it estimates:
 - threshold touch probabilities
 - conditional close behavior after a threshold is touched
 
-The local webapp then turns that into a live planning surface for the current day.
+The local webapp turns that into a live planning surface for the current day.
 
-### 2. Intraday QQQ/NDX condor research
+### Intraday QQQ/NDX condor research
 
-Package: [`intraday_condor_research`](/Users/erictao/trading_2/intraday_condor_research)
+Package: [`intraday_condor_research`](intraday_condor_research)
 
 This is a separate intraday study built around QQQ 5-minute candles as a proxy for NDX-style same-day condors.
 
@@ -75,8 +73,6 @@ That pipeline is useful for structural condor research and regime analysis, but 
 
 ## Current Project Conclusions
 
-These are the broad findings that drove the current shape of the code:
-
 - Raw daily close-direction prediction was weak and unstable.
 - Predicting touch / excursion thresholds from the open is more useful than predicting the exact close.
 - High predicted touch probability does not always mean clean continuation. At the extreme, it often marks an expansion regime rather than a simple trend day.
@@ -88,32 +84,32 @@ These are the broad findings that drove the current shape of the code:
 
 ## Repository Layout
 
-- [`spx_0dte_planner/features.py`](/Users/erictao/trading_2/spx_0dte_planner/features.py)
-  Builds the daily feature set.
-- [`spx_0dte_planner/model.py`](/Users/erictao/trading_2/spx_0dte_planner/model.py)
+- [`spx_0dte_planner/features.py`](spx_0dte_planner/features.py)
+  Daily feature set and targets.
+- [`spx_0dte_planner/model.py`](spx_0dte_planner/model.py)
   Training, backtesting, excursion thresholds, and conditional-close analysis.
-- [`spx_0dte_planner/live.py`](/Users/erictao/trading_2/spx_0dte_planner/live.py)
+- [`spx_0dte_planner/live.py`](spx_0dte_planner/live.py)
   Live inference helpers for the webapp.
-- [`spx_0dte_planner/webapp.py`](/Users/erictao/trading_2/spx_0dte_planner/webapp.py)
+- [`spx_0dte_planner/webapp.py`](spx_0dte_planner/webapp.py)
   Local browser UI for current-day touch and continuation analysis.
-- [`intraday_condor_research/`](/Users/erictao/trading_2/intraday_condor_research)
+- [`intraday_condor_research/`](intraday_condor_research)
   Intraday condor-proxy analysis.
-- [`scripts/download_market_data.py`](/Users/erictao/trading_2/scripts/download_market_data.py)
+- [`scripts/download_market_data.py`](scripts/download_market_data.py)
   Refreshes SPX and VIX daily history.
-- [`scripts/download_twelve_data_intraday.py`](/Users/erictao/trading_2/scripts/download_twelve_data_intraday.py)
+- [`scripts/download_twelve_data_intraday.py`](scripts/download_twelve_data_intraday.py)
   Pulls QQQ intraday proxy candles from Twelve Data.
 
 ## Data Files
 
-Tracked inputs live in [`data/`](/Users/erictao/trading_2/data).
+Tracked inputs live in [`data/`](data).
 
 Main files:
 
-- [`data/spx_daily.csv`](/Users/erictao/trading_2/data/spx_daily.csv)
-- [`data/vix_daily.csv`](/Users/erictao/trading_2/data/vix_daily.csv)
-- [`data/events.csv`](/Users/erictao/trading_2/data/events.csv)
-- [`data/qqq_intraday_5min.csv`](/Users/erictao/trading_2/data/qqq_intraday_5min.csv)
-- [`data/tradingview_option_quotes_template.csv`](/Users/erictao/trading_2/data/tradingview_option_quotes_template.csv)
+- [`data/spx_daily.csv`](data/spx_daily.csv)
+- [`data/vix_daily.csv`](data/vix_daily.csv)
+- [`data/events.csv`](data/events.csv)
+- [`data/qqq_intraday_5min.csv`](data/qqq_intraday_5min.csv)
+- [`data/tradingview_option_quotes_template.csv`](data/tradingview_option_quotes_template.csv)
 
 Expected daily OHLC columns:
 
@@ -172,8 +168,7 @@ This is more useful than plain hit rate because it tells us whether the model is
 Run the local UI with:
 
 ```bash
-cd /Users/erictao/trading_2
-/opt/homebrew/bin/python3.11 -m spx_0dte_planner.webapp \
+python3.11 -m spx_0dte_planner.webapp \
   --spx data/spx_daily.csv \
   --vix data/vix_daily.csv \
   --events data/events.csv \
@@ -183,7 +178,7 @@ cd /Users/erictao/trading_2
 
 Then open:
 
-- `http://127.0.0.1:8011`
+- `http://localhost:8011`
 
 What the UI shows:
 
@@ -211,7 +206,7 @@ That keeps the UI informative without pretending sparse historical buckets are m
 Example daily range run:
 
 ```bash
-/opt/homebrew/bin/python3.11 -m spx_0dte_planner.cli \
+python3.11 -m spx_0dte_planner.cli \
   --underlying data/spx_daily.csv \
   --underlying-label SPX \
   --vix data/vix_daily.csv \
@@ -235,7 +230,7 @@ In `range` mode, the CLI prints:
 Run the intraday pipeline with:
 
 ```bash
-/opt/homebrew/bin/python3.11 -m intraday_condor_research.cli \
+python3.11 -m intraday_condor_research.cli \
   --input data/qqq_intraday_5min.csv \
   --vix-daily data/vix_daily.csv \
   --symbol QQQ \
@@ -290,19 +285,19 @@ Current buckets:
 Refresh daily SPX/VIX history with:
 
 ```bash
-/opt/homebrew/bin/python3.11 scripts/download_market_data.py \
+python3.11 scripts/download_market_data.py \
   --start 2021-01-01 \
   --end 2026-12-31
 ```
 
-The downloader now falls back to Yahoo for SPX if Stooq returns no rows, which helps avoid accidental empty SPX files.
+The downloader falls back to Yahoo for SPX if Stooq returns no rows, which helps avoid accidental empty SPX files.
 
 ## Tests
 
 Run:
 
 ```bash
-MPLCONFIGDIR=/Users/erictao/trading_2/.mplconfig /opt/homebrew/bin/python3.11 -m pytest -q
+MPLCONFIGDIR=.mplconfig python3.11 -m pytest -q
 ```
 
 ## Current Limitations
