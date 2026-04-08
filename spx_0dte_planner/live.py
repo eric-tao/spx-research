@@ -16,6 +16,7 @@ from .model import (
     RangePrediction,
     conditional_close_given_touch,
     conditional_close_given_touch_by_regime,
+    conditional_close_targets_given_touch_by_regime,
 )
 
 
@@ -521,3 +522,110 @@ def select_continuation_stats(
 
     overall_row = continuation_lookup.get(side, {}).get("overall", {}).get("overall", {}).get(threshold, {})
     return dict(overall_row, basis_label="overall", basis_kind="overall")
+
+
+def build_touch_target_lookup(
+    fit_result: RangeFitResult,
+    backtest_predictions: Sequence[RangePrediction],
+    touch_thresholds: Sequence[float],
+    close_thresholds: Sequence[float],
+) -> Dict[str, Dict[str, Dict[str, Dict[str, Dict[float, Dict[float, Dict[str, float | str]]]]]]]:
+    regime_rows = conditional_close_targets_given_touch_by_regime(
+        fit_result.train_rows,
+        fit_result.backtest_rows,
+        backtest_predictions,
+        touch_thresholds,
+        close_thresholds,
+    )
+    lookup: Dict[str, Dict[str, Dict[str, Dict[str, Dict[float, Dict[float, Dict[str, float | str]]]]]]] = {
+        "upside_touch": {"upside": {}, "downside": {}},
+        "downside_touch": {"upside": {}, "downside": {}},
+    }
+    for touched_side, close_side_map in regime_rows.items():
+        for close_side, family_rows in close_side_map.items():
+            close_lookup: Dict[str, Dict[str, Dict[float, Dict[float, Dict[str, float | str]]]]] = {}
+            for family, rows in family_rows.items():
+                family_lookup: Dict[str, Dict[float, Dict[float, Dict[str, float | str]]]] = {}
+                for row in rows:
+                    regime_value = str(row["regime_value"])
+                    touch_threshold = float(row["touch_threshold_return"])
+                    close_threshold = float(row["close_threshold_return"])
+                    family_lookup.setdefault(regime_value, {})
+                    family_lookup[regime_value].setdefault(touch_threshold, {})
+                    family_lookup[regime_value][touch_threshold][close_threshold] = row
+                close_lookup[family] = family_lookup
+            lookup[touched_side][close_side] = close_lookup
+    return lookup
+
+
+def select_touch_target_stats(
+    touch_target_lookup: Dict[str, Dict[str, Dict[str, Dict[str, Dict[float, Dict[float, Dict[str, float | str]]]]]]],
+    *,
+    touched_side: str,
+    close_side: str,
+    touch_threshold: float,
+    close_threshold: float,
+    regime_context: RegimeContext,
+    min_combo_samples: int = 8,
+    min_family_samples: int = 12,
+) -> Dict[str, float | str]:
+    touched_lookup = touch_target_lookup.get(touched_side, {}).get(close_side, {})
+    combo_key = f"{regime_context.vix_regime}|{regime_context.range_regime}|{regime_context.gap_regime}"
+    combo_row = (
+        touched_lookup.get("combo_regime", {})
+        .get(combo_key, {})
+        .get(touch_threshold, {})
+        .get(close_threshold)
+    )
+    if combo_row is not None and float(combo_row.get("samples", 0.0)) >= min_combo_samples:
+        return dict(combo_row, basis_label=f"combo: {combo_key}", basis_kind="combo")
+
+    candidates = [
+        ("vix", "vix_regime", regime_context.vix_regime),
+        ("gap", "gap_regime", regime_context.gap_regime),
+        ("prior range", "range_regime", regime_context.range_regime),
+    ]
+    best_row: Dict[str, float | str] | None = None
+    best_label = ""
+    best_samples = -1.0
+    for basis_kind, family_key, regime_value in candidates:
+        row = (
+            touched_lookup.get(family_key, {})
+            .get(regime_value, {})
+            .get(touch_threshold, {})
+            .get(close_threshold)
+        )
+        if row is None:
+            continue
+        samples = float(row.get("samples", 0.0))
+        if samples >= min_family_samples and samples > best_samples:
+            best_row = row
+            best_label = f"{basis_kind}: {regime_value}"
+            best_samples = samples
+    if best_row is not None:
+        return dict(best_row, basis_label=best_label, basis_kind="family")
+
+    for basis_kind, family_key, regime_value in candidates:
+        row = (
+            touched_lookup.get(family_key, {})
+            .get(regime_value, {})
+            .get(touch_threshold, {})
+            .get(close_threshold)
+        )
+        if row is None:
+            continue
+        samples = float(row.get("samples", 0.0))
+        if samples > best_samples:
+            best_row = row
+            best_label = f"{basis_kind}: {regime_value}"
+            best_samples = samples
+    if best_row is not None:
+        return dict(best_row, basis_label=best_label, basis_kind="family")
+
+    return {
+        "samples": 0.0,
+        "close_rate": 0.0,
+        "avg_close_return": 0.0,
+        "basis_label": "overall",
+        "basis_kind": "overall",
+    }

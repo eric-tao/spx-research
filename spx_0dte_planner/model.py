@@ -931,3 +931,129 @@ def conditional_close_given_touch_by_regime(
                     rows.append(_summarize(side, threshold, regime_name, regime_value))
             output[side][regime_name] = rows
     return output
+
+
+def conditional_close_targets_given_touch_by_regime(
+    train_rows: Sequence[FeatureRow],
+    backtest_rows: Sequence[FeatureRow],
+    predictions: Sequence[RangePrediction],
+    touch_thresholds: Sequence[float],
+    close_thresholds: Sequence[float],
+) -> Dict[str, Dict[str, Dict[str, List[Dict[str, float | str]]]]]:
+    if not train_rows or not backtest_rows or not predictions:
+        return {"upside_touch": {}, "downside_touch": {}}
+
+    name_index = {name: idx for idx, name in enumerate(train_rows[0].feature_names)}
+
+    def _feature(row: FeatureRow, name: str) -> float:
+        return row.values[name_index[name]]
+
+    train_vix = np.asarray([_feature(row, "current_vix_open") for row in train_rows], dtype=float)
+    train_prev_range = np.asarray([_feature(row, "spx_range_pct_lag_1") for row in train_rows], dtype=float)
+    train_abs_gap = np.asarray([abs(_feature(row, "current_spx_overnight_gap")) for row in train_rows], dtype=float)
+
+    vix_low_upper, vix_mid_upper = np.quantile(train_vix, [1.0 / 3.0, 2.0 / 3.0])
+    range_low_upper, range_mid_upper = np.quantile(train_prev_range, [1.0 / 3.0, 2.0 / 3.0])
+    gap_flat_upper = float(np.quantile(train_abs_gap, 0.25))
+    gap_small_upper = float(np.quantile(train_abs_gap, 0.60))
+    gap_medium_upper = float(np.quantile(train_abs_gap, 0.85))
+
+    enriched: List[Dict[str, float | str]] = []
+    for row, prediction in zip(backtest_rows, predictions):
+        current_vix_open = _feature(row, "current_vix_open")
+        prev_range_pct = _feature(row, "spx_range_pct_lag_1")
+        abs_gap = abs(_feature(row, "current_spx_overnight_gap"))
+        if current_vix_open <= vix_low_upper:
+            vix_regime = "low_vix"
+        elif current_vix_open <= vix_mid_upper:
+            vix_regime = "mid_vix"
+        else:
+            vix_regime = "high_vix"
+        if prev_range_pct <= range_low_upper:
+            range_regime = "low_prev_range"
+        elif prev_range_pct <= range_mid_upper:
+            range_regime = "mid_prev_range"
+        else:
+            range_regime = "high_prev_range"
+        if abs_gap <= gap_flat_upper:
+            gap_regime = "flat_gap"
+        elif abs_gap <= gap_small_upper:
+            gap_regime = "small_gap"
+        elif abs_gap <= gap_medium_upper:
+            gap_regime = "medium_gap"
+        else:
+            gap_regime = "large_gap"
+        enriched.append(
+            {
+                "vix_regime": vix_regime,
+                "range_regime": range_regime,
+                "gap_regime": gap_regime,
+                "combo_regime": f"{vix_regime}|{range_regime}|{gap_regime}",
+                "actual_high_return": prediction.actual_high_return,
+                "actual_low_return": prediction.actual_low_return,
+                "actual_close_return": prediction.actual_close_return,
+            }
+        )
+
+    def _summarize(
+        touched_side: str,
+        close_side: str,
+        touch_threshold: float,
+        close_threshold: float,
+        regime_name: str,
+        regime_value: str,
+    ) -> Dict[str, float | str]:
+        subset = [row for row in enriched if row[regime_name] == regime_value]
+        if touched_side == "upside_touch":
+            touched = [row for row in subset if row["actual_high_return"] >= touch_threshold]
+        else:
+            touched = [row for row in subset if row["actual_low_return"] <= -touch_threshold]
+        close_returns = np.asarray([float(row["actual_close_return"]) for row in touched], dtype=float)
+        if close_side == "upside":
+            close_rate = float(np.mean(close_returns >= close_threshold)) if len(close_returns) else 0.0
+        else:
+            close_rate = float(np.mean(close_returns <= -close_threshold)) if len(close_returns) else 0.0
+        return {
+            "touched_side": touched_side,
+            "close_side": close_side,
+            "regime_family": regime_name,
+            "regime_value": regime_value,
+            "touch_threshold_return": touch_threshold,
+            "touch_threshold_pct": touch_threshold * 100.0,
+            "close_threshold_return": close_threshold,
+            "close_threshold_pct": close_threshold * 100.0,
+            "samples": float(len(touched)),
+            "regime_days": float(len(subset)),
+            "touch_rate_within_regime": float(len(touched) / len(subset)) if subset else 0.0,
+            "close_rate": close_rate,
+            "avg_close_return": float(np.mean(close_returns)) if len(close_returns) else 0.0,
+        }
+
+    regime_buckets = {
+        "vix_regime": ["low_vix", "mid_vix", "high_vix"],
+        "range_regime": ["low_prev_range", "mid_prev_range", "high_prev_range"],
+        "gap_regime": ["flat_gap", "small_gap", "medium_gap", "large_gap"],
+        "combo_regime": sorted({str(row["combo_regime"]) for row in enriched}),
+    }
+    output: Dict[str, Dict[str, Dict[str, List[Dict[str, float | str]]]]] = {"upside_touch": {}, "downside_touch": {}}
+    for touched_side in ["upside_touch", "downside_touch"]:
+        for close_side in ["upside", "downside"]:
+            family_output: Dict[str, List[Dict[str, float | str]]] = {}
+            for regime_name, regime_values in regime_buckets.items():
+                rows: List[Dict[str, float | str]] = []
+                for touch_threshold in touch_thresholds:
+                    for close_threshold in close_thresholds:
+                        for regime_value in regime_values:
+                            rows.append(
+                                _summarize(
+                                    touched_side,
+                                    close_side,
+                                    touch_threshold,
+                                    close_threshold,
+                                    regime_name,
+                                    regime_value,
+                                )
+                            )
+                family_output[regime_name] = rows
+            output[touched_side][close_side] = family_output
+    return output
